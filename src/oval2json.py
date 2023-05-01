@@ -9,9 +9,9 @@ XMLNSOVAL = ""
 
 # definitions are either 'patch' or 'vulnerability' depending on the vendor
 def parse_oval_definitions(root, ns, data):
-    definitions = root.xpath('//*[@class="patch"]', namespaces=ns)
+    definitions = root.findall('.//*[@class="patch"]', namespaces=ns)
     if not definitions:
-        definitions = root.xpath('//*[@class="vulnerability"]', namespaces=ns)
+        definitions = root.findall('.//*[@class="vulnerability"]', namespaces=ns)
     for definition in definitions:
         defi = {}
         test = {}
@@ -29,7 +29,7 @@ def parse_oval_definitions(root, ns, data):
 
 
 def parse_oval_test(root, ns, test, test_ref):
-    entry = root.xpath(f"//*[@id='{test_ref}']", namespaces=ns)[0]
+    entry = root.find(f".//*[@id='{test_ref}']", namespaces=ns)
     for children in entry.iterchildren():
         if children.get("object_ref"):
             print('test-obj')
@@ -44,7 +44,7 @@ def parse_oval_test(root, ns, test, test_ref):
 
 
 def parse_oval_object(root, ns, test, object_ref):
-    obj = root.xpath(f"//*[@id='{object_ref}']", namespaces=ns)[0]
+    obj = root.find(f".//*[@id='{object_ref}']", namespaces=ns)
     for children in obj.iterchildren():
         print('object')
         var_ref = children.get("var_ref")
@@ -53,7 +53,7 @@ def parse_oval_object(root, ns, test, object_ref):
 
 
 def parse_oval_state(root, ns, test, state_ref):
-    state = root.xpath(f"//*[@id='{state_ref}']", namespaces=ns)[0]
+    state = root.find(f".//*[@id='{state_ref}']", namespaces=ns)
     for children in state.iterchildren():
         print('state')
         version = children.text
@@ -62,7 +62,7 @@ def parse_oval_state(root, ns, test, state_ref):
 
 def parse_oval_variable(root, ns, test, var_ref):
     binpkgs = []
-    values = root.xpath(f"//*[@id='{var_ref}']/xmlns:value", namespaces=ns)
+    values = root.findall(f".//*[@id='{var_ref}']/xmlns:value", namespaces=ns)
     for val in values:
         print('var')
         binpkgs.append(val.text)

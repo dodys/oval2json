@@ -20,6 +20,14 @@ def parse_oval_definitions(root, ns, data):
         defi["title"] = definition.findtext(".//xmlns:title", namespaces=ns)
         defi["severity"] = definition.findtext(".//xmlns:severity", namespaces=ns)
         defi["tests"] = []
+        defi["cves"] = []
+        for cve in definition.findall(".//xmlns:cve", namespaces=ns):
+            defi["cves"].append({"cve_id": cve.text,
+                                 "public_date": cve.get("public"),
+                                 "severity": cve.get("severity"),
+                                 "cvss_score": cve.get("cvss_score"),
+                                 "cvss_vector": cve.get("cvss_vector")
+                                 })
         for criterion in definition.findall(".//xmlns:criteria/xmlns:criterion", namespaces=ns):
             print('criterion')
             test["id"] = criterion.get("test_ref")

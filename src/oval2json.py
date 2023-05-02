@@ -8,6 +8,7 @@ XMLNSOVAL = ""
 
 
 # definitions are either 'patch' or 'vulnerability' depending on the vendor
+# or data type
 def parse_oval_definitions(root, ns, data):
     definitions = root.findall('.//*[@class="patch"]', namespaces=ns)
     if not definitions:
@@ -16,7 +17,6 @@ def parse_oval_definitions(root, ns, data):
         defi = {}
         test = {}
         defi["id"] = definition.get("id")
-        print(defi["id"])
         defi["title"] = definition.findtext(".//xmlns:title", namespaces=ns)
         defi["severity"] = definition.findtext(".//xmlns:severity", namespaces=ns)
         defi["tests"] = []
@@ -29,7 +29,6 @@ def parse_oval_definitions(root, ns, data):
                                  "cvss_vector": cve.get("cvss_vector")
                                  })
         for criterion in definition.findall(".//xmlns:criteria/xmlns:criterion", namespaces=ns):
-            print('criterion')
             test["id"] = criterion.get("test_ref")
             parse_oval_test(root, ns, test, test["id"])
             defi["tests"].append(test)

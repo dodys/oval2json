@@ -162,6 +162,8 @@ def main():
     t4.join()
     t5.join()
 
+    # TODO: put it into a function and a smarter and faster
+    # way to do it
     # merge all the data
     for entry in data:
         for test in entry["tests"]:

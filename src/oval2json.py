@@ -22,13 +22,18 @@ def parse_oval_definitions(root, ns, data):
         defi["tests"] = []
         defi["cves"] = []
         for cve in definition.findall(".//xmlns:cve", namespaces=ns):
-            defi["cves"].append({"cve_id": cve.text,
-                                 "public_date": cve.get("public"),
-                                 "severity": cve.get("severity"),
-                                 "cvss_score": cve.get("cvss_score"),
-                                 "cvss_vector": cve.get("cvss_vector")
-                                 })
-        for criterion in definition.findall(".//xmlns:criteria/xmlns:criterion", namespaces=ns):
+            defi["cves"].append(
+                {
+                    "cve_id": cve.text,
+                    "public_date": cve.get("public"),
+                    "severity": cve.get("severity"),
+                    "cvss_score": cve.get("cvss_score"),
+                    "cvss_vector": cve.get("cvss_vector"),
+                }
+            )
+        for criterion in definition.findall(
+            ".//xmlns:criteria/xmlns:criterion", namespaces=ns
+        ):
             test = {}
             test["id"] = criterion.get("test_ref")
             test["comment"] = criterion.get("comment")
@@ -77,14 +82,14 @@ def parse_oval_variables(root, ns, variables):
         var["var_ref"] = child.get("id")
         for item in child.getchildren():
             binpkgs.append(item.text)
-        var['binaries'] = binpkgs
+        var["binaries"] = binpkgs
         variables.append(var)
 
 
 def parse_args():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument('ovalfile', help="input oval filepath")
-    argparser.add_argument('jsonfile', help="ouput json filepath")
+    argparser.add_argument("ovalfile", help="input oval filepath")
+    argparser.add_argument("jsonfile", help="ouput json filepath")
     return argparser.parse_args()
 
 
@@ -97,18 +102,53 @@ def main():
     oval = ET.parse(oval_filename, parser)
     root = oval.getroot()
     xmlns = root.nsmap
-    xmlns['xmlns'] = xmlns.pop(None)
+    xmlns["xmlns"] = xmlns.pop(None)
 
     data = []
     tests = []
     objects = []
     states = []
     variables = []
-    t1 = threading.Thread(target=parse_oval_definitions, args=(root, xmlns, data,))
-    t2 = threading.Thread(target=parse_oval_tests, args=(root, xmlns, tests,))
-    t3 = threading.Thread(target=parse_oval_objects, args=(root, xmlns, objects,))
-    t4 = threading.Thread(target=parse_oval_states, args=(root, xmlns, states,))
-    t5 = threading.Thread(target=parse_oval_variables, args=(root, xmlns, variables,))
+    t1 = threading.Thread(
+        target=parse_oval_definitions,
+        args=(
+            root,
+            xmlns,
+            data,
+        ),
+    )
+    t2 = threading.Thread(
+        target=parse_oval_tests,
+        args=(
+            root,
+            xmlns,
+            tests,
+        ),
+    )
+    t3 = threading.Thread(
+        target=parse_oval_objects,
+        args=(
+            root,
+            xmlns,
+            objects,
+        ),
+    )
+    t4 = threading.Thread(
+        target=parse_oval_states,
+        args=(
+            root,
+            xmlns,
+            states,
+        ),
+    )
+    t5 = threading.Thread(
+        target=parse_oval_variables,
+        args=(
+            root,
+            xmlns,
+            variables,
+        ),
+    )
 
     t1.start()
     t2.start()

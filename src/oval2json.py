@@ -86,6 +86,31 @@ def parse_oval_variables(root, ns, variables):
         variables.append(var)
 
 
+# TODO: this still feels hack-ish, should try to make it
+# smarter and faster
+def merge_dicts(data, tests, objects, states, variables):
+    for entry in data:
+        for test in entry["tests"]:
+            for item in tests:
+                if item["id"] == test["id"]:
+                    test.update(item)
+                    break
+            for item in objects:
+                if item["object_ref"] == test["object_ref"]:
+                    test.update(item)
+                    break
+            if "state_ref" in test:
+                for item in states:
+                    if item["state_ref"] == test["state_ref"]:
+                        test.update(item)
+                        break
+            if "var_ref" in test:
+                for item in variables:
+                    if item["var_ref"] == test["var_ref"]:
+                        test.update(item)
+                        break
+
+
 def parse_args():
     argparser = argparse.ArgumentParser()
     argparser.add_argument("ovalfile", help="input oval filepath")
@@ -162,29 +187,7 @@ def main():
     t4.join()
     t5.join()
 
-    # TODO: put it into a function and a smarter and faster
-    # way to do it
-    # merge all the data
-    for entry in data:
-        for test in entry["tests"]:
-            for item in tests:
-                if item["id"] == test["id"]:
-                    test.update(item)
-                    break
-            for item in objects:
-                if item["object_ref"] == test["object_ref"]:
-                    test.update(item)
-                    break
-            if "state_ref" in test:
-                for item in states:
-                    if item["state_ref"] == test["state_ref"]:
-                        test.update(item)
-                        break
-            if "var_ref" in test:
-                for item in variables:
-                    if item["var_ref"] == test["var_ref"]:
-                        test.update(item)
-                        break
+    merge_dicts(data, tests, objects, states, variables)
 
     json_formatted = json.dumps(data, indent=2)
     with open(json_filename, "w") as jsonfile:

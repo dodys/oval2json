@@ -3,6 +3,7 @@ import argparse
 import json
 import sys
 import threading
+import yaml
 
 XMLNS = "http://oval.mitre.org/XMLSchema/oval-definitions-5"
 XMLNSOVAL = ""
@@ -113,15 +114,21 @@ def merge_dicts(data, tests, objects, states, variables):
 
 def parse_args():
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("ovalfile", help="input oval filepath")
-    argparser.add_argument("jsonfile", help="ouput json filepath")
+    argparser.add_argument("ovalfile", help="input OVAL filepath")
+    argparser.add_argument("jsonfile", help="ouput JSON filepath")
+    argparser.add_argument(
+        "--yaml", action="store_true", help="generate output also in YAML format"
+    )
     return argparser.parse_args()
 
 
 def main():
     args = parse_args()
     oval_filename = args.ovalfile
-    json_filename = args.jsonfile
+    json_filename = args.jsonfile + ".json" if ".json" not in args.jsonfile else args.jsonfile
+    yaml_filename = ""
+    if args.yaml:
+        yaml_filename = json_filename.replace(".json", ".yaml")
 
     parser = ET.XMLParser(ns_clean=True)
     oval = ET.parse(oval_filename, parser)
@@ -192,6 +199,10 @@ def main():
     json_formatted = json.dumps(data, indent=2)
     with open(json_filename, "w") as jsonfile:
         jsonfile.write(json_formatted)
+
+    if args.yaml:
+        with open(yaml_filename, "w") as yamlfile:
+            yaml.dump(data, yamlfile, sort_keys=False)
 
 
 if __name__ == "__main__":

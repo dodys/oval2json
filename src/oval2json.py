@@ -19,26 +19,24 @@ def parse_oval_definitions(root, ns, data):
         defi = {}
         defi["id"] = definition.get("id")
         defi["title"] = definition.findtext(".//xmlns:title", namespaces=ns)
-        defi["severity"] = definition.findtext(".//xmlns:severity", namespaces=ns)
-        defi["tests"] = []
         defi["cves"] = []
-        for cve in definition.findall(".//xmlns:cve", namespaces=ns):
-            defi["cves"].append(
-                {
-                    "cve_id": cve.text,
-                    "public_date": cve.get("public"),
-                    "severity": cve.get("severity"),
-                    "cvss_score": cve.get("cvss_score"),
-                    "cvss_vector": cve.get("cvss_vector"),
-                }
-            )
-        for criterion in definition.findall(
-            ".//xmlns:criteria/xmlns:criterion", namespaces=ns
-        ):
-            test = {}
-            test["id"] = criterion.get("test_ref")
-            test["comment"] = criterion.get("comment")
-            defi["tests"].append(test)
+        cves = definition.findall(".//xmlns:cve", namespaces=ns)
+        tests = definition.findall(".//xmlns:criteria/xmlns:criterion", namespaces=ns)
+        j = 0
+        for i in range(len(tests)):
+            cve_id = cves[j].text
+            if cve_id in tests[i].get("comment"):
+                defi["cves"].append(
+                    {
+                        "cve_id": cves[j].text,
+                        "public_date": cves[j].get("public"),
+                        "severity": cves[j].get("severity"),
+                        "cvss_score": cves[j].get("cvss_score"),
+                        "cvss_vector": cves[j].get("cvss_vector"),
+                        "test_ref": tests[i].get("test_ref"),
+                    }
+                )
+                j = j + 1
         data.append(defi)
 
 
@@ -46,7 +44,7 @@ def parse_oval_tests(root, ns, tests):
     tsts = root.find(".//xmlns:tests", namespaces=ns)
     for child in tsts.getchildren():
         tst = {}
-        tst["id"] = child.get("id")
+        tst["test_ref"] = child.get("id")
         for item in child.getchildren():
             if item.get("object_ref"):
                 tst["object_ref"] = item.get("object_ref")
@@ -61,7 +59,10 @@ def parse_oval_objects(root, ns, objects):
         obj = {}
         obj["object_ref"] = child.get("id")
         for item in child.getchildren():
-            obj["var_ref"] = item.get("var_ref")
+            if item.get("var_ref"):
+                obj["var_ref"] = item.get("var_ref")
+            else:
+                obj["var_ref"] = item.text
         objects.append(obj)
 
 
@@ -82,7 +83,10 @@ def parse_oval_variables(root, ns, variables):
         var = {}
         var["var_ref"] = child.get("id")
         for item in child.getchildren():
-            binpkgs.append(item.text)
+            if child.get("datatype") != "string":
+                var["fixed_version"] = item.text
+            else:
+                binpkgs.append(item.text)
         var["binaries"] = binpkgs
         variables.append(var)
 
@@ -91,24 +95,24 @@ def parse_oval_variables(root, ns, variables):
 # smarter and faster
 def merge_dicts(data, tests, objects, states, variables):
     for entry in data:
-        for test in entry["tests"]:
+        for cve in entry["cves"]:
             for item in tests:
-                if item["id"] == test["id"]:
-                    test.update(item)
+                if item["test_ref"] == cve["test_ref"]:
+                    cve.update(item)
                     break
             for item in objects:
-                if item["object_ref"] == test["object_ref"]:
-                    test.update(item)
+                if item["object_ref"] == cve["object_ref"]:
+                    cve.update(item)
                     break
-            if "state_ref" in test:
+            if "state_ref" in cve:
                 for item in states:
-                    if item["state_ref"] == test["state_ref"]:
-                        test.update(item)
+                    if item["state_ref"] == cve["state_ref"]:
+                        cve.update(item)
                         break
-            if "var_ref" in test:
+            if "var_ref" in cve:
                 for item in variables:
-                    if item["var_ref"] == test["var_ref"]:
-                        test.update(item)
+                    if item["var_ref"] == cve["var_ref"]:
+                        cve.update(item)
                         break
 
 
@@ -125,7 +129,9 @@ def parse_args():
 def main():
     args = parse_args()
     oval_filename = args.ovalfile
-    json_filename = args.jsonfile + ".json" if ".json" not in args.jsonfile else args.jsonfile
+    json_filename = (
+        args.jsonfile + ".json" if ".json" not in args.jsonfile else args.jsonfile
+    )
     yaml_filename = ""
     if args.yaml:
         yaml_filename = json_filename.replace(".json", ".yaml")

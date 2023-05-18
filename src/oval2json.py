@@ -1,13 +1,18 @@
-from lxml import etree as ET
+import xml.etree.ElementTree as ET
 import argparse
 import json
 import sys
 import threading
 import yaml
 
-XMLNS = "http://oval.mitre.org/XMLSchema/oval-definitions-5"
-XMLNSOVAL = ""
-
+xmlns = {
+    'xmlns': 'http://oval.mitre.org/XMLSchema/oval-definitions-5',
+    'oval': 'http://oval.mitre.org/XMLSchema/oval-common-5',
+    'ind-def': 'http://oval.mitre.org/XMLSchema/oval-definitions-5#independent',
+    'unix-def': 'http://oval.mitre.org/XMLSchema/oval-definitions-5#unix',
+    'linux-def': 'http://oval.mitre.org/XMLSchema/oval-definitions-5#linux',
+    'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
+}
 
 # definitions are either 'patch' or 'vulnerability' depending on the vendor
 # or data type
@@ -42,10 +47,10 @@ def parse_oval_definitions(root, ns, data):
 
 def parse_oval_tests(root, ns, tests):
     tsts = root.find(".//xmlns:tests", namespaces=ns)
-    for child in tsts.getchildren():
+    for child in tsts:
         tst = {}
         tst["test_ref"] = child.get("id")
-        for item in child.getchildren():
+        for item in child:
             if item.get("object_ref"):
                 tst["object_ref"] = item.get("object_ref")
             elif item.get("state_ref"):
@@ -55,10 +60,10 @@ def parse_oval_tests(root, ns, tests):
 
 def parse_oval_objects(root, ns, objects):
     objs = root.find(".//xmlns:objects", namespaces=ns)
-    for child in objs.getchildren():
+    for child in objs:
         obj = {}
         obj["object_ref"] = child.get("id")
-        for item in child.getchildren():
+        for item in child:
             if item.get("var_ref"):
                 obj["var_ref"] = item.get("var_ref")
             else:
@@ -68,21 +73,21 @@ def parse_oval_objects(root, ns, objects):
 
 def parse_oval_states(root, ns, states):
     sts = root.find(".//xmlns:states", namespaces=ns)
-    for child in sts.getchildren():
+    for child in sts:
         ste = {}
         ste["state_ref"] = child.get("id")
-        for item in child.getchildren():
+        for item in child:
             ste["fixed_version"] = item.text
         states.append(ste)
 
 
 def parse_oval_variables(root, ns, variables):
     varss = root.find(".//xmlns:variables", namespaces=ns)
-    for child in varss.getchildren():
+    for child in varss:
         binpkgs = []
         var = {}
         var["var_ref"] = child.get("id")
-        for item in child.getchildren():
+        for item in child:
             if child.get("datatype") != "string":
                 var["fixed_version"] = item.text
             else:
@@ -136,11 +141,8 @@ def main():
     if args.yaml:
         yaml_filename = json_filename.replace(".json", ".yaml")
 
-    parser = ET.XMLParser(ns_clean=True)
-    oval = ET.parse(oval_filename, parser)
+    oval = ET.parse(oval_filename)
     root = oval.getroot()
-    xmlns = root.nsmap
-    xmlns["xmlns"] = xmlns.pop(None)
 
     data = []
     tests = []

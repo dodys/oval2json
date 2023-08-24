@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import argparse
 import json
+import re
 import sys
 import threading
 import yaml
@@ -14,111 +15,117 @@ xmlns = {
     'xsi': 'http://www.w3.org/2001/XMLSchema-instance'
 }
 
+
 # definitions are either 'patch' or 'vulnerability' depending on the vendor
 # or data type
-def parse_oval_definitions(root, ns, data):
-    definitions = root.findall('.//*[@class="patch"]', namespaces=ns)
-    if not definitions:
-        definitions = root.findall('.//*[@class="vulnerability"]', namespaces=ns)
-    for definition in definitions:
-        defi = {}
-        defi["id"] = definition.get("id")
-        defi["title"] = definition.findtext(".//xmlns:title", namespaces=ns)
-        defi["cves"] = []
-        cves = definition.findall(".//xmlns:cve", namespaces=ns)
-        tests = definition.findall(".//xmlns:criteria/xmlns:criterion", namespaces=ns)
-        j = 0
-        for i in range(len(tests)):
-            cve_id = cves[j].text
-            if cve_id in tests[i].get("comment"):
-                defi["cves"].append(
-                    {
-                        "cve_id": cves[j].text,
-                        "public_date": cves[j].get("public"),
-                        "severity": cves[j].get("severity"),
-                        "cvss_score": cves[j].get("cvss_score"),
-                        "cvss_vector": cves[j].get("cvss_vector"),
-                        "test_ref": tests[i].get("test_ref"),
-                    }
-                )
-                j = j + 1
-        data.append(defi)
+def parse_oval_definitions(root, ns, definitions):
+    defs = root.findall('.//*[@class="patch"]', namespaces=ns)
+    if not defs:
+        defs = root.findall('.//*[@class="vulnerability"]', namespaces=ns)
+
+    for defi in defs:
+        key = defi.get("id")
+        definitions[key] = {}
+        definitions[key]["title"] = defi.findtext(
+            ".//xmlns:title", namespaces=ns
+        )
+        definitions[key]["description"] = defi.findtext(
+            ".//xmlns:description", namespaces=ns
+        )
+        definitions[key]["severity"] = defi.findtext(
+            ".//xmlns:severity", namespaces=ns
+        )
+
+        issued = defi.find(".//xmlns:issued", namespaces=ns)
+        if issued:
+            definitions[key]["issued"] = issued.get("date")
+
+        definitions[key]["reference"] = []
+        for ref in defi.findall(".//xmlns:reference", namespaces=ns):
+            definitions[key]["reference"].append(ref.attrib)
+        definitions[key]["cves"] = []
+        for cve in defi.findall(".//xmlns:cve", namespaces=ns):
+            definitions[key]["cves"].append(
+                {
+                    "cve_id": cve.text,
+                    "public_date": cve.get("public"),
+                    "severity": cve.get("severity"),
+                    "cvss_score": cve.get("cvss_score"),
+                    "cvss_vector": cve.get("cvss_vector"),
+                }
+            )
+        definitions[key]["test_refs"] = {}
+        for test in defi.findall(
+            ".//xmlns:criteria/xmlns:criterion", namespaces=ns
+        ):
+            test_ref = test.get("test_ref")
+            definitions[key]["test_refs"][test_ref] = {}
+            definitions[key]["test_refs"][test_ref]["comment"] = test.get("comment")
 
 
 def parse_oval_tests(root, ns, tests):
     tsts = root.find(".//xmlns:tests", namespaces=ns)
-    for child in tsts:
-        tst = {}
-        tst["test_ref"] = child.get("id")
-        for item in child:
+    for test in tsts:
+        key = test.get("id")
+        tests[key] = {}
+        for item in test:
             if item.get("object_ref"):
-                tst["object_ref"] = item.get("object_ref")
+                tests[key]["object_ref"] = item.get("object_ref")
             elif item.get("state_ref"):
-                tst["state_ref"] = item.get("state_ref")
-        tests.append(tst)
+                tests[key]["state_ref"] = item.get("state_ref")
 
 
 def parse_oval_objects(root, ns, objects):
     objs = root.find(".//xmlns:objects", namespaces=ns)
-    for child in objs:
-        obj = {}
-        obj["object_ref"] = child.get("id")
-        for item in child:
+    for obj in objs:
+        key = obj.get("id")
+        objects[key] = {}
+        for item in obj:
             if item.get("var_ref"):
-                obj["var_ref"] = item.get("var_ref")
-            else:
-                obj["var_ref"] = item.text
-        objects.append(obj)
+                objects[key]["var_ref"] = item.get("var_ref")
+            elif "var_ref" in item.tag:
+                objects[key]["var_ref"] = item.text
 
 
 def parse_oval_states(root, ns, states):
     sts = root.find(".//xmlns:states", namespaces=ns)
-    for child in sts:
-        ste = {}
-        ste["state_ref"] = child.get("id")
-        for item in child:
-            ste["fixed_version"] = item.text
-        states.append(ste)
+    for ste in sts:
+        key = ste.get("id")
+        states[key] = {}
+        for item in ste:
+            states[key]["fixed_version"] = item.text
 
 
 def parse_oval_variables(root, ns, variables):
     varss = root.find(".//xmlns:variables", namespaces=ns)
-    for child in varss:
+    for var in varss:
         binpkgs = []
-        var = {}
-        var["var_ref"] = child.get("id")
-        for item in child:
-            if child.get("datatype") != "string":
-                var["fixed_version"] = item.text
+        key = var.get("id")
+        variables[key] = {}
+        for item in var:
+            result = re.search(r'^(?:\^)(.*)(?:\(\?.*)', item.text)
+            if result:
+                binary = re.sub(r'\\', '', result[1])
+                binpkgs.append(binary)
             else:
                 binpkgs.append(item.text)
-        var["binaries"] = binpkgs
-        variables.append(var)
+        variables[key]["binaries"] = binpkgs
 
 
-# TODO: this still feels hack-ish, should try to make it
-# smarter and faster
-def merge_dicts(data, tests, objects, states, variables):
-    for entry in data:
-        for cve in entry["cves"]:
-            for item in tests:
-                if item["test_ref"] == cve["test_ref"]:
-                    cve.update(item)
-                    break
-            for item in objects:
-                if item["object_ref"] == cve["object_ref"]:
-                    cve.update(item)
-                    break
-            if "state_ref" in cve:
-                for item in states:
-                    if item["state_ref"] == cve["state_ref"]:
-                        cve.update(item)
-                        break
-            if "var_ref" in cve:
-                for item in variables:
-                    if item["var_ref"] == cve["var_ref"]:
-                        cve.update(item)
-                        break
+def merge_dicts(definitions, tests, objects, states, variables):
+    for key in definitions.keys():
+        for ref, val in definitions[key]["test_refs"].items():
+            test_id = ref
+            obj_id = tests[test_id]["object_ref"]
+            val["object_ref"] = obj_id
+            if "state_ref" in tests[test_id]:
+                ste_id = tests[test_id]["state_ref"]
+                val["state_ref"] = ste_id
+                val["fixed_version"] = states[ste_id]["fixed_version"]
+            if "var_ref" in objects[obj_id]:
+                var_id = objects[obj_id]["var_ref"]
+                val["var_ref"] = var_id
+                val["binaries"] = variables[var_id]["binaries"]
 
 
 def parse_args():
@@ -144,17 +151,17 @@ def main():
     oval = ET.parse(oval_filename)
     root = oval.getroot()
 
-    data = []
-    tests = []
-    objects = []
-    states = []
-    variables = []
+    definitions = {}
+    tests = {}
+    objects = {}
+    states = {}
+    variables = {}
     t1 = threading.Thread(
         target=parse_oval_definitions,
         args=(
             root,
             xmlns,
-            data,
+            definitions,
         ),
     )
     t2 = threading.Thread(
@@ -202,15 +209,15 @@ def main():
     t4.join()
     t5.join()
 
-    merge_dicts(data, tests, objects, states, variables)
+    merge_dicts(definitions, tests, objects, states, variables)
 
-    json_formatted = json.dumps(data, indent=2)
+    json_formatted = json.dumps(definitions, indent=2)
     with open(json_filename, "w") as jsonfile:
         jsonfile.write(json_formatted)
 
     if args.yaml:
         with open(yaml_filename, "w") as yamlfile:
-            yaml.dump(data, yamlfile, sort_keys=False)
+            yaml.dump(definitions, yamlfile, sort_keys=False)
 
 
 if __name__ == "__main__":

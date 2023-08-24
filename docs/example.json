@@ -1,0 +1,51 @@
+{
+  "oval:com.ubuntu.focal:def:60181000000": {
+    "title": "USN-6018-1 -- Apport vulnerability",
+    "description": "THIS IS A DESCRIPTION",
+    "severity": "Medium",
+    "reference": [
+      {
+        "source": "USN",
+        "ref_id": "USN-6018-1",
+        "ref_url": "https://ubuntu.com/security/notices/USN-6018-1"
+      },
+      {
+        "source": "CVE",
+        "ref_id": "CVE-2023-1326",
+        "ref_url": "https://ubuntu.com/security/CVE-2023-1326"
+      }
+    ],
+    "cves": [
+      {
+        "cve_id": "CVE-2023-1326",
+        "public_date": "20230413",
+        "severity": "medium",
+        "cvss_score": "7.8",
+        "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:H"
+      }
+    ],
+    "test_refs": {
+      "oval:com.ubuntu.focal:tst:601810000000": {
+        "comment": "SOME TEST COMMENT",
+        "object_ref": "oval:com.ubuntu.focal:obj:601810000000",
+        "state_ref": "oval:com.ubuntu.focal:ste:601810000000",
+        "fixed_version": "2.20.11-0ubuntu27.26",
+        "var_ref": "oval:com.ubuntu.focal:var:601810000000",
+        "binaries": [
+          "python3-problem-report",
+          "apport-kde",
+          "apport-retrace",
+          "apport-valgrind",
+          "python3-apport",
+          "dh-apport",
+          "apport-gtk",
+          "apport",
+          "apport-noui"
+        ]
+      }
+    }
+  },
+  "oval:...": {
+      ...
+  }
+}

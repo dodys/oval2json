@@ -1,7 +1,9 @@
 # oval2json
 
 This project aims to convert an OVAL file from different vendors into a
-standard JSON (and YAML) format.
+standard JSON (and YAML) format. You can find a JSON format [here](docs/example.json),
+but note that this is not the closed format and this could change at any
+time.
 
 This project is still under development and the main goal is to publish
 it into PyPI for others to use it.

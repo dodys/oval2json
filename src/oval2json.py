@@ -49,9 +49,10 @@ def parse_oval_definitions(root, ns, definitions):
                 {
                     "cve_id": cve.text,
                     "public_date": cve.get("public"),
-                    "severity": cve.get("severity"),
+                    "priority": cve.get("priority"),
                     "cvss_score": cve.get("cvss_score"),
                     "cvss_vector": cve.get("cvss_vector"),
+                    "cvss_severity": cve.get("cvss_severity"),
                 }
             )
         definitions[key]["test_refs"] = {}
